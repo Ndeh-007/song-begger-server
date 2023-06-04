@@ -1,5 +1,3 @@
-import { request } from "express";
-import axios from "axios"; 
 import { initializeYouTubeAPI, searchYouTube } from "./youtube";
 import { searchWithSpotify } from "./spotify";
 
