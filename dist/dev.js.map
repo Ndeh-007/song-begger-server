@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../env.ts", "../dev.ts"],
+  "sourcesContent": ["export default {\r\n    PORT: \"3001\",\r\n};", "import env from \"./env\"\r\n\r\nObject.assign(process.env, env)\r\n\r\ntype ENV = typeof env\r\ndeclare global {\r\n\tnamespace NodeJS {\r\n\t\t// rome-ignore lint/suspicious/noEmptyInterface:\r\n\t\tinterface ProcessEnv extends ENV {}\r\n\t}\r\n}\r\n"],
+  "mappings": ";AAAA,IAAO,cAAQ;AAAA,EACX,MAAM;AACV;;;ACAA,OAAO,OAAO,QAAQ,KAAK,WAAG;",
+  "names": []
+}

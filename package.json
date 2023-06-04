@@ -1,0 +1,31 @@
+{
+	"name": "node-ts",
+	"version": "0.0.0",
+	"author": "dayblox",
+	"description": "Node.js & TypeScript starter",
+	"engines": {
+		"node": ">=18.11",
+		"pnpm": ">=7.27"
+	},
+	"scripts": {
+		"dev": "pnpm /dev:.*/",
+		"dev:build": "esbuild dev.ts ./src --bundle --outdir=dist --packages=external --platform=node --sourcemap --watch",
+		"dev:run": "node --inspect --no-warnings --loader ./dist/dev.js --watch dist/src",
+		"build": "esbuild index=./src --bundle --minify --outdir=dist --packages=external --platform=node",
+		"start": "node dist"
+	},
+	"dependencies": {
+		"axios": "^1.4.0",
+		"body-parser": "^1.20.2",
+		"cors": "^2.8.5",
+		"esbuild": "^0.17.19",
+		"express": "^4.18.2",
+		"firebase": "^8.10.1",
+		"google-auth-library": "^8.8.0",
+		"googleapis": "^118.0.0",
+		"multer": "1.4.5-lts.1"
+	},
+	"devDependencies": {
+		"@types/node": "^20.2.1"
+	}
+}
