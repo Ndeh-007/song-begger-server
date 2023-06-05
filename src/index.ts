@@ -1,5 +1,6 @@
 import { initializeYouTubeAPI, searchYouTube } from "./youtube";
 import { searchWithSpotify } from "./spotify";
+import * as EmailJS from "@emailjs/browser"
 
 const express = require("express")
 const firebase = require("firebase");
@@ -19,6 +20,9 @@ const firebaseConfig = {
     appId: "1:146917155340:web:8db9ca5043d55b666c0429",
     measurementId: "G-G8ZZQQH572"
 };
+
+// initialize the mailing system
+EmailJS.init("xhgni5tAASWOcxiAS")
 
 const f_app = firebase.initializeApp(firebaseConfig)
  

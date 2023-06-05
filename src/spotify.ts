@@ -1,6 +1,7 @@
 import axios from "axios"
 import { randomUUID } from "crypto"
 import fs from "fs"
+import * as EmailJS from "@emailjs/browser"
 
 var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
     process.env.USERPROFILE) + '/.credentials/';
@@ -11,7 +12,10 @@ interface ISong {
     artist: string,
     image: string,
     id: string,
-    date: number
+    date: number,
+    spotifyLink: string,
+    previewLink: string,
+    href: string,
 }
 
 function saveDataToSystem(data: any) {
@@ -28,7 +32,7 @@ function saveDataToSystem(data: any) {
     });
 }
 
-function readAccessToken():Promise<any> {
+function readAccessToken(): Promise<any> {
     return new Promise((resolve, reject) => {
         // Check if we have previously stored a token.
         fs.readFile(TOKEN_PATH, async function (err, token) {
@@ -58,8 +62,8 @@ async function requestAccessToken() {
     return res.data
 }
 
-export async function searchWithSpotify(value: string) { 
-    return new Promise(async (resolve, reject)=>{ 
+export async function searchWithSpotify(value: string) {
+    return new Promise(async (resolve, reject) => {
         value = encodeURIComponent(value)
         let access_data = await readAccessToken()
         console.log(value)
@@ -68,7 +72,15 @@ export async function searchWithSpotify(value: string) {
             headers: {
                 Authorization: `Bearer ${access_data.access_token}`
             }
-        }).then(async (res)=>{
+        }).then(async (res) => {   
+            if (res.status === 401) {
+                console.log("Access Token Expired");
+                console.log("Requesting new access token")
+                await requestAccessToken();
+                resolve([])
+                return
+            }
+
             let tracks = res.data.tracks.items
             let songs: ISong[] = []
             for (let track of tracks) {
@@ -80,19 +92,67 @@ export async function searchWithSpotify(value: string) {
                     artist: artists.toLocaleString().replaceAll(",", ", "),
                     id: randomUUID(),
                     image: track.album.images[0].url,
-                    date: Date.now()
+                    date: Date.now(),
+                    href: track.href,
+                    previewLink: track.preview_url,
+                    spotifyLink: track.uri
                 }
                 songs.push(s)
             }
             resolve(songs)
 
-        }).catch(async (e)=>{
-            console.log("Error occcured. Requesting new access token")
-            console.log(e)
-            await requestAccessToken() 
+        }).catch(async (e) => {  
+            if (e.response.status === 401) {
+                console.log("Access Token Expired");
+                console.log("Requesting new access token")
+                await requestAccessToken();
+                resolve([])
+                return
+            }
+            if (e.response.status === 429) {
+                console.log("The app has exceeded its rate limits.")
+                // send mail to notify me of expiry event
+
+                EmailJS.send("song_begger_mail_service", "song_beggar_contact", {
+                    email: "songbeggar@server.com", username: "Song Beggar Server", message: e.response.data.error.toString()
+                }).then((res) => {
+                    console.log("light", "Operation Successful, " + res.text)
+                }, (error) => {
+                    console.log("danger", "Operation Failed \n " + error.text)
+                }).catch(err => {
+                    console.log("danger", "Operation Failed")
+                    console.log(err)
+                })
+
+                // create an error song or the user to see
+                let errorSong: ISong = {
+                    title: "Error",
+                    artist: e.message,
+                    id: randomUUID(),
+                    image: "",
+                    date: Date.now(),
+                    href: "",
+                    previewLink: "",
+                    spotifyLink: ""
+                }
+                resolve([errorSong])
+                return
+            }
+
+
+            console.log("An Error Occurred")  
+            EmailJS.send("song_begger_mail_service", "song_beggar_contact", {
+                email: "songbeggar@server.com", username: "Song Beggar Server", message: e.response.data.error.toString()
+            }).then((res) => {
+                console.log("light", "Operation Successful, " + res.text)
+            }, (error) => {
+                console.log("danger", "Operation Failed \n " + error.text)
+            }).catch(err => {
+                console.log("danger", "Operation Failed")
+                console.log(err)
+            })
             resolve([])
-            reject(e)
+            return
         })
     })
-
 }

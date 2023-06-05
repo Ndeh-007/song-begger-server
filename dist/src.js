@@ -6,9 +6,9 @@ var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key2 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key2) && key2 !== except)
-        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
   }
   return to;
 };
@@ -21,52 +21,30 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// src/youtube.ts
-var import_axios = __toESM(require("axios"));
-var import_fs = __toESM(require("fs"));
-var import_googleapis = require("googleapis");
-var readline = require("readline");
-var OAuth2 = import_googleapis.google.auth.OAuth2;
-var key = "AIzaSyB56Pk4jkneU0rwShgZp6T0ItyWgPX_0CM";
-var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + "/.credentials/";
-var TOKEN_PATH = TOKEN_DIR + "youtube-nodejs-quickstart.json";
-async function searchYouTube(value) {
-  let access_token = "ya29.a0AWY7Ckn0R8o_xZrTLGQStxOBsLNAhZc5uSRACwW27YYxQHw46zI-H_pMXEcXs_YVuPqXey2nqL_tk4_QwTisASlu84Z8xuRQYe7B07cKMCfCMj2iCXu0lD1No1MtGZt3tHuexMl3N4h_Y9F7LKkmy8473JKkaCgYKAXkSARASFQG1tDrpo0VXOOMRvKAhPD62ZYWFUQ0163";
-  value = encodeURIComponent(value);
-  let url = `https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=video&key=${key}&q=${value}`;
-  let ytRes = await import_axios.default.get(url, {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${access_token}`
-    }
-  });
-  console.log(ytRes);
-  return ytRes.data;
-}
-
 // src/spotify.ts
-var import_axios2 = __toESM(require("axios"));
+var import_axios = __toESM(require("axios"));
 var import_crypto = require("crypto");
-var import_fs2 = __toESM(require("fs"));
-var TOKEN_DIR2 = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + "/.credentials/";
-var TOKEN_PATH2 = TOKEN_DIR2 + "spotify_access_token.json";
+var import_fs = __toESM(require("fs"));
+var EmailJS = __toESM(require("@emailjs/browser"));
+var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + "/.credentials/";
+var TOKEN_PATH = TOKEN_DIR + "spotify_access_token.json";
 function saveDataToSystem(data) {
   try {
-    import_fs2.default.mkdirSync(TOKEN_DIR2);
+    import_fs.default.mkdirSync(TOKEN_DIR);
   } catch (err) {
     if (err.code != "EEXIST") {
       throw err;
     }
   }
-  import_fs2.default.writeFile(TOKEN_PATH2, JSON.stringify(data), (err) => {
+  import_fs.default.writeFile(TOKEN_PATH, JSON.stringify(data), (err) => {
     if (err)
       throw err;
-    console.log("Token stored to " + TOKEN_PATH2);
+    console.log("Token stored to " + TOKEN_PATH);
   });
 }
 function readAccessToken() {
   return new Promise((resolve, reject) => {
-    import_fs2.default.readFile(TOKEN_PATH2, async function(err, token) {
+    import_fs.default.readFile(TOKEN_PATH, async function(err, token) {
       if (err) {
         let token_data = await requestAccessToken();
         resolve(token_data);
@@ -79,7 +57,7 @@ function readAccessToken() {
 }
 async function requestAccessToken() {
   let url = "https://accounts.spotify.com/api/token";
-  let res = await import_axios2.default.post(url, {
+  let res = await import_axios.default.post(url, {
     client_id: "d16860988beb42ccaabc4b1c3709c15a",
     client_secret: "d66c2867fe754ebd8870f2e8bc31b42f",
     grant_type: "client_credentials"
@@ -97,11 +75,21 @@ async function searchWithSpotify(value) {
     let access_data = await readAccessToken();
     console.log(value);
     let url = `https://api.spotify.com/v1/search?q=${value}&type=track`;
-    import_axios2.default.get(url, {
+    import_axios.default.get(url, {
       headers: {
         Authorization: `Bearer ${access_data.access_token}`
       }
     }).then(async (res) => {
+      console.log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+      console.log(res);
+      console.log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+      if (res.status === 401) {
+        console.log("Access Token Expired");
+        console.log("Requesting new access token");
+        await requestAccessToken();
+        resolve([]);
+        return;
+      }
       let tracks = res.data.tracks.items;
       let songs = [];
       for (let track of tracks) {
@@ -110,23 +98,64 @@ async function searchWithSpotify(value) {
         });
         let s = {
           title: track.name,
-          artist: artists.toLocaleString(),
+          artist: artists.toLocaleString().replaceAll(",", ", "),
           id: (0, import_crypto.randomUUID)(),
-          image: track.album.images[0].url
+          image: track.album.images[0].url,
+          date: Date.now(),
+          href: track.href,
+          previewLink: track.preview_url,
+          spotifyLink: track.uri
         };
         songs.push(s);
       }
       resolve(songs);
+    }, (err) => {
     }).catch(async (e) => {
-      console.log("Error occcured. Requesting new access token");
-      console.log(e);
+      if (e.status.toString() === "401") {
+        console.log("Access Token Expired");
+        console.log("Requesting new access token");
+        await requestAccessToken();
+        resolve([]);
+        return;
+      }
+      if (e.status === "429") {
+        console.log("The app has exceeded its rate limits.");
+        EmailJS.send("song_begger_mail_service", "song_beggar_contact", {
+          email: "songbeggar@server.com",
+          username: "Song Beggar Server",
+          message: e.toString()
+        }).then((res) => {
+          console.log("light", "Operation Successful, " + res.text);
+        }, (error) => {
+          console.log("danger", "Operation Failed \n " + error.text);
+        }).catch((err) => {
+          console.log("danger", "Operation Failed");
+          console.log(err);
+        });
+        let errorSong = {
+          title: "Error",
+          artist: e.message,
+          id: (0, import_crypto.randomUUID)(),
+          image: "",
+          date: Date.now(),
+          href: "",
+          previewLink: "",
+          spotifyLink: ""
+        };
+        resolve([errorSong]);
+        return;
+      }
+      console.log("An Error Occurred");
+      console.log("Requesting new access token");
       await requestAccessToken();
-      reject(e);
+      resolve([]);
+      return;
     });
   });
 }
 
 // src/index.ts
+var EmailJS2 = __toESM(require("@emailjs/browser"));
 var express = require("express");
 var firebase = require("firebase");
 var cors = require("cors");
@@ -144,18 +173,11 @@ var firebaseConfig = {
   appId: "1:146917155340:web:8db9ca5043d55b666c0429",
   measurementId: "G-G8ZZQQH572"
 };
+EmailJS2.init("xhgni5tAASWOcxiAS");
 var f_app = firebase.initializeApp(firebaseConfig);
-var database = firebase.database(f_app);
-var firestore = firebase.firestore(f_app);
 async function processSongRequest(req) {
-  if (req.body.api == "youtube") {
-    let res = await searchYouTube(req.body.keywords);
-    return res;
-  }
-  if (req.body.api == "spotify") {
-    let res = await searchWithSpotify(req.body.keywords);
-    return res;
-  }
+  let res = await searchWithSpotify(req.body.keywords);
+  return res;
 }
 var app = express();
 var port = 3001;
